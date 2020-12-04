@@ -6,7 +6,7 @@ import "./realmath.sol";
 struct Orbit  { 
       Cartesian center;
       Polar last;
-      uint lastUpdateBlock;
+      uint lastUpdate;
 }
 
 struct Polar { 
@@ -37,10 +37,8 @@ contract ComethGame {
         
     event ShipMove(string indexed _modelId,  uint _block, uint32  _distance, uint16 _angle);
     
-    // Degree by block
-    uint16 public rotationSpeed = 20;
-    uint16 public cometRotationSpeed = 30;
-    
+    // Degree by second
+    uint16 public rotationSpeed = 1;
     
     mapping (string => Orbit) private shipOrbits;
     Ship[] private _ships;
@@ -58,8 +56,8 @@ contract ComethGame {
      }
      
     function cartesianCoordinate(Orbit memory orbit) internal view returns (Cartesian memory position) {
-        uint blockDiff = block.number - orbit.lastUpdateBlock;
-        int88 currentAngleDegree = int88((orbit.last.angle + blockDiff * rotationSpeed) % 360);
+        uint timeDiff = block.timestamp - orbit.lastUpdate;
+        int88 currentAngleDegree = int88((orbit.last.angle + timeDiff * rotationSpeed) % 360);
         int128 currentAngleReal = currentAngleDegree.toReal();
          
         int128 halfCirleReal = int88(180).toReal();
@@ -85,7 +83,7 @@ contract ComethGame {
          
          Orbit memory orbit = Orbit({center: Cartesian({x:0, y:0}), 
                                      last: Polar({angle:angle, distance:distance}), 
-                                     lastUpdateBlock: block.number});
+                                     lastUpdate: block.timestamp});
          
          shipOrbits[modelId] = orbit;
          _ships.push(Ship({modelId: modelId, orbit: orbit}));
@@ -97,7 +95,7 @@ contract ComethGame {
       function addComet (address cometAddr, int x, int y, uint32 distance) public {
          Orbit memory orbit = Orbit({center:  Cartesian({x:x, y:y}), 
                                      last: Polar({angle:0, distance:distance}), 
-                                     lastUpdateBlock: block.number});
+                                     lastUpdate: block.timestamp});
          
          comethOrbits[cometAddr] = orbit;
          _comets.push(Comet({cometAddr: cometAddr, orbit: orbit}));
