@@ -1,26 +1,40 @@
 pragma solidity >=0.6.0 <0.7.0;
 pragma experimental ABIEncoderV2;
 
-struct Position { 
+import "./realmath.sol";
+
+struct Orbit  { 
+      Cartesian center;
+      Polar last;
+      uint lastUpdateBlock;
+}
+
+struct Polar { 
         uint32 distance;
         uint16 angle;
-        uint lastUpdateBlock;
     }
+    
+    struct Cartesian { 
+        int x;
+        int y;
+    }
+    
     
 struct Ship { 
-       string modelId;
-       Position position;
-    }
+    string modelId;
+    Orbit orbit;
+       
+}
     
 struct Comet { 
-       address cometAddr;
-       uint32 rotationCenterX;
-       uint32 rotationCenterY;
-       Position position;
-    }
+    address cometAddr;
+    Orbit orbit;
+}
     
-
 contract ComethGame {
+    
+    using RealMath for *;
+        
     event ShipMove(string indexed _modelId,  uint _block, uint32  _distance, uint16 _angle);
     
     // Degree by block
@@ -28,42 +42,65 @@ contract ComethGame {
     uint16 public cometRotationSpeed = 30;
     
     
-    mapping (string => Position) public shipPositions;
+    mapping (string => Orbit) private shipOrbits;
     Ship[] private _ships;
     
-    mapping (address => Position) public comethPosition;
+    mapping (address => Orbit) private comethOrbits;
     Comet[] private _comets;
      
+     
+     function shipPosition(string memory modelId) public view returns (Cartesian memory position){
+         return cartesianCoordinate(shipOrbits[modelId]);
+     }
+     
+     function cometPosition(address cometAddr) public view returns (Cartesian memory position){
+         return cartesianCoordinate(comethOrbits[cometAddr]);
+     }
+     
+    function cartesianCoordinate(Orbit memory orbit) internal view returns (Cartesian memory position) {
+        uint blockDiff = block.number - orbit.lastUpdateBlock;
+        int88 currentAngleDegree = int88((orbit.last.angle + blockDiff * rotationSpeed) % 360);
+        int128 currentAngleReal = currentAngleDegree.toReal();
+         
+        int128 halfCirleReal = int88(180).toReal();
+         
+        int128 currentAngleRadians = currentAngleReal.mul(RealMath.REAL_PI).div(halfCirleReal);
+         
+        int128 angleCos = currentAngleRadians.cos();
+        int128 angleSin = currentAngleRadians.sin();
+         
+        int128 distanceReal = orbit.last.distance.toReal();
+         
+        int x = distanceReal.mul(angleCos).fromReal() + orbit.center.x;
+        int y = distanceReal.mul(angleSin).fromReal() + orbit.center.y;
+        
+         return Cartesian({x: x, y: y});
+    }
     
-   
     function addShip (string memory modelId) public {
          uint256 addressToUint = uint256(msg.sender);
          
-         uint32 distance = uint32(addressToUint % 100);
+         uint32 distance = uint32(addressToUint % 500);
          uint16 angle = uint16(addressToUint % 360);
          
-         Position memory position = Position({distance: distance, angle: angle, lastUpdateBlock: block.number});
+         Orbit memory orbit = Orbit({center: Cartesian({x:0, y:0}), 
+                                     last: Polar({angle:angle, distance:distance}), 
+                                     lastUpdateBlock: block.number});
          
-         shipPositions[modelId] = position;
-         _ships.push(Ship({modelId: modelId, position: position}));
+         shipOrbits[modelId] = orbit;
+         _ships.push(Ship({modelId: modelId, orbit: orbit}));
          
          emit ShipMove(modelId, block.number, distance, angle);
     }
     
     
-      function addComet (address cometAddr) public {
-         uint256 addressToUint = uint256(cometAddr);
+      function addComet (address cometAddr, int x, int y, uint32 distance) public {
+         Orbit memory orbit = Orbit({center:  Cartesian({x:x, y:y}), 
+                                     last: Polar({angle:0, distance:distance}), 
+                                     lastUpdateBlock: block.number});
          
-         uint32 distance = uint32(addressToUint % 50);
-         uint16 angle = uint16(addressToUint % 360);
-         
-          uint32 x = uint32(addressToUint % 50);
-          uint32 y = uint32(addressToUint % 50);
-         
-         Position memory position = Position({distance: distance, angle: angle, lastUpdateBlock: block.number});
-         
-         comethPosition[cometAddr] = position;
-         _comets.push(Comet({cometAddr: cometAddr, rotationCenterX: x, rotationCenterY: y, position: position}));
+         comethOrbits[cometAddr] = orbit;
+         _comets.push(Comet({cometAddr: cometAddr, orbit: orbit}));
     }
     
     function shipsInGame() public view returns (Ship[] memory ships)  {
@@ -74,8 +111,6 @@ contract ComethGame {
         return  _comets;
     }
     
-     
-    
-    
-    
 }
+
+// SPDX-License-Identifier: MIT

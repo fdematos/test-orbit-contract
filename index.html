@@ -16,26 +16,29 @@
     return degrees * (pi/180);
   }
 
+  function displayPosition(id, x, y, color) {
+	   let text = new PIXI.Text(id ,{fontFamily : 'Arial', fontSize: 21, fill : color, align : 'center'});
+       text.x = parseInt(x) + centerX
+	   text.y = parseInt(y) + centerY
+       app.stage.addChild(text);
+  }
+
   function refreshPosition() {
     web3.eth.getBlockNumber().then(function(block){
     blockText.text = "Block: "+block
 
       comethGameContract.methods.shipsInGame().call().then(function(result){
           result.forEach(element => {
-
-            var blockDiff = block - element.position.lastUpdateBlock
-            var currentAngle = degrees_to_radians((element.position.angle + (blockDiff * 20) ) % 360)
-
-            var x = element.position.distance * 4 * Math.cos(currentAngle) + 400
-            var y= element.position.distance * 3 * Math.sin(currentAngle) + 300
-
-            console.log(x+" "+y)
-
-            let text = new PIXI.Text(element.modelId ,{fontFamily : 'Arial', fontSize: 21, fill : 0xff1010, align : 'center'});
-            text.x = x
-            text.y = y
-
-            app.stage.addChild(text);
+           /* var blockDiff = block - element.orbit.lastUpdateBlock
+			console.log(element)
+            var currentAngleInDegree = (parseInt(element.orbit.last.angle, 10) + (blockDiff * 20)) % 360
+            var currentAngle = degrees_to_radians(currentAngleInDegree)
+            var x = element.orbit.last.distance * Math.cos(currentAngle) +centerX 
+			var y = element.orbit.last.distance * Math.sin(currentAngle) + centerY*/
+			
+            comethGameContract.methods.shipPosition(element.modelId).call().then(function(result){
+				displayPosition(element.modelId, result.x, result.y, 0xFF0000)
+            });
 
           });
       });
@@ -43,23 +46,19 @@
 
       comethGameContract.methods.cometsInGame().call().then(function(result){
           result.forEach(element => {
+			displayPosition("X", element.orbit.center.x, element.orbit.center.y, 0x0000FF)
+            /*var blockDiff = block - element.orbit.lastUpdateBlock
+            var currentAngle = degrees_to_radians((element.orbit.last.angle+ (blockDiff * 20) ) % 360)
 
-            var blockDiff = block - element.position.lastUpdateBlock
-            var currentAngle = degrees_to_radians((element.position.angle + (blockDiff * 30) ) % 360)
-
-            var x = element.position.distance * 4 * Math.cos(currentAngle) + 400 + element.rotationCenterX * 4
-            var y= element.position.distance * 3 * Math.sin(currentAngle) + 300 + element.rotationCenterY * 3
-
-            console.log(element)
-            console.log(x+" "+y)
-
-            let text = new PIXI.Text("CO" ,{fontFamily : 'Arial', fontSize: 21, fill : 0x0000FF, align : 'center'});
-            text.x = x
-            text.y = y
-
-            app.stage.addChild(text);
-
-          });
+            var x = element.orbit.last.distance * Math.cos(currentAngle) + parseInt(element.orbit.center.x)
+            var y=  element.orbit.last.distance * Math.sin(currentAngle) + parseInt(element.orbit.center.y)
+			console.log("COMETH : "+x+" "+y)*/
+			
+			comethGameContract.methods.cometPosition("0xf845b2501A69eF480aC577b99e96796c2B6AE88E").call().then(function(result){
+				//console.log("COMETH CONTRACT: "+result.x, result.y)
+				displayPosition("C", result.x, result.y, 0x0000FF)
+            });
+          })
       });
 
 
@@ -67,10 +66,304 @@
     });
   }
 
-  var comethGameAbi = [{"anonymous":false,"inputs":[{"indexed":true,"internalType":"string","name":"_modelId","type":"string"},{"indexed":false,"internalType":"uint256","name":"_block","type":"uint256"},{"indexed":false,"internalType":"uint32","name":"_distance","type":"uint32"},{"indexed":false,"internalType":"uint16","name":"_angle","type":"uint16"}],"name":"ShipMove","type":"event"},{"inputs":[{"internalType":"address","name":"cometAddr","type":"address"}],"name":"addComet","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"string","name":"modelId","type":"string"}],"name":"addShip","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"cometRotationSpeed","outputs":[{"internalType":"uint16","name":"","type":"uint16"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"comethPosition","outputs":[{"internalType":"uint32","name":"distance","type":"uint32"},{"internalType":"uint16","name":"angle","type":"uint16"},{"internalType":"uint256","name":"lastUpdateBlock","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"cometsInGame","outputs":[{"components":[{"internalType":"address","name":"cometAddr","type":"address"},{"internalType":"uint32","name":"rotationCenterX","type":"uint32"},{"internalType":"uint32","name":"rotationCenterY","type":"uint32"},{"components":[{"internalType":"uint32","name":"distance","type":"uint32"},{"internalType":"uint16","name":"angle","type":"uint16"},{"internalType":"uint256","name":"lastUpdateBlock","type":"uint256"}],"internalType":"struct Position","name":"position","type":"tuple"}],"internalType":"struct Comet[]","name":"comets","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"rotationSpeed","outputs":[{"internalType":"uint16","name":"","type":"uint16"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"string","name":"","type":"string"}],"name":"shipPositions","outputs":[{"internalType":"uint32","name":"distance","type":"uint32"},{"internalType":"uint16","name":"angle","type":"uint16"},{"internalType":"uint256","name":"lastUpdateBlock","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"shipsInGame","outputs":[{"components":[{"internalType":"string","name":"modelId","type":"string"},{"components":[{"internalType":"uint32","name":"distance","type":"uint32"},{"internalType":"uint16","name":"angle","type":"uint16"},{"internalType":"uint256","name":"lastUpdateBlock","type":"uint256"}],"internalType":"struct Position","name":"position","type":"tuple"}],"internalType":"struct Ship[]","name":"ships","type":"tuple[]"}],"stateMutability":"view","type":"function"}]
-  var web3 = new Web3(new Web3.providers.HttpProvider('https://rinkeby.infura.io/v3/5a1d2983f4e54626b951daa708fdbf0c'));
+  var comethGameAbi = [
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "cometAddr",
+				"type": "address"
+			},
+			{
+				"internalType": "int256",
+				"name": "x",
+				"type": "int256"
+			},
+			{
+				"internalType": "int256",
+				"name": "y",
+				"type": "int256"
+			},
+			{
+				"internalType": "uint32",
+				"name": "distance",
+				"type": "uint32"
+			}
+		],
+		"name": "addComet",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "modelId",
+				"type": "string"
+			}
+		],
+		"name": "addShip",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "string",
+				"name": "_modelId",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "_block",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint32",
+				"name": "_distance",
+				"type": "uint32"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint16",
+				"name": "_angle",
+				"type": "uint16"
+			}
+		],
+		"name": "ShipMove",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "cometAddr",
+				"type": "address"
+			}
+		],
+		"name": "cometPosition",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "int256",
+						"name": "x",
+						"type": "int256"
+					},
+					{
+						"internalType": "int256",
+						"name": "y",
+						"type": "int256"
+					}
+				],
+				"internalType": "struct Cartesian",
+				"name": "position",
+				"type": "tuple"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "cometRotationSpeed",
+		"outputs": [
+			{
+				"internalType": "uint16",
+				"name": "",
+				"type": "uint16"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "cometsInGame",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "address",
+						"name": "cometAddr",
+						"type": "address"
+					},
+					{
+						"components": [
+							{
+								"components": [
+									{
+										"internalType": "int256",
+										"name": "x",
+										"type": "int256"
+									},
+									{
+										"internalType": "int256",
+										"name": "y",
+										"type": "int256"
+									}
+								],
+								"internalType": "struct Cartesian",
+								"name": "center",
+								"type": "tuple"
+							},
+							{
+								"components": [
+									{
+										"internalType": "uint32",
+										"name": "distance",
+										"type": "uint32"
+									},
+									{
+										"internalType": "uint16",
+										"name": "angle",
+										"type": "uint16"
+									}
+								],
+								"internalType": "struct Polar",
+								"name": "last",
+								"type": "tuple"
+							},
+							{
+								"internalType": "uint256",
+								"name": "lastUpdateBlock",
+								"type": "uint256"
+							}
+						],
+						"internalType": "struct Orbit",
+						"name": "orbit",
+						"type": "tuple"
+					}
+				],
+				"internalType": "struct Comet[]",
+				"name": "comets",
+				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "rotationSpeed",
+		"outputs": [
+			{
+				"internalType": "uint16",
+				"name": "",
+				"type": "uint16"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "modelId",
+				"type": "string"
+			}
+		],
+		"name": "shipPosition",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "int256",
+						"name": "x",
+						"type": "int256"
+					},
+					{
+						"internalType": "int256",
+						"name": "y",
+						"type": "int256"
+					}
+				],
+				"internalType": "struct Cartesian",
+				"name": "position",
+				"type": "tuple"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "shipsInGame",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "string",
+						"name": "modelId",
+						"type": "string"
+					},
+					{
+						"components": [
+							{
+								"components": [
+									{
+										"internalType": "int256",
+										"name": "x",
+										"type": "int256"
+									},
+									{
+										"internalType": "int256",
+										"name": "y",
+										"type": "int256"
+									}
+								],
+								"internalType": "struct Cartesian",
+								"name": "center",
+								"type": "tuple"
+							},
+							{
+								"components": [
+									{
+										"internalType": "uint32",
+										"name": "distance",
+										"type": "uint32"
+									},
+									{
+										"internalType": "uint16",
+										"name": "angle",
+										"type": "uint16"
+									}
+								],
+								"internalType": "struct Polar",
+								"name": "last",
+								"type": "tuple"
+							},
+							{
+								"internalType": "uint256",
+								"name": "lastUpdateBlock",
+								"type": "uint256"
+							}
+						],
+						"internalType": "struct Orbit",
+						"name": "orbit",
+						"type": "tuple"
+					}
+				],
+				"internalType": "struct Ship[]",
+				"name": "ships",
+				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+]
 
-  var comethGameContract =  new web3.eth.Contract(comethGameAbi, "0x77211Fb1000C07b32Db5C41e5960Bdcd2b338F52")
+   var web3 = new Web3(new Web3.providers.HttpProvider('https://rinkeby.infura.io/v3/5a1d2983f4e54626b951daa708fdbf0c'));
+
+  var comethGameContract =  new web3.eth.Contract(comethGameAbi, "0x3c28dF307bAfA430b0e8340D540A8b87621F5c97")
 
   //Create a Pixi Application
   let app = new PIXI.Application({
@@ -81,19 +374,21 @@
   }
   );
 
+  var centerX = 300;
+  var centerY = 300;
+
+  let center = new PIXI.Text("X",{fontFamily : 'Arial', fontSize: 21, fill : 0xff1010, align : 'center'});
+  center.x = centerX;
+  center.y = centerY;
+  app.stage.addChild(center);
+
   let blockText = new PIXI.Text("",{fontFamily : 'Arial', fontSize: 21, fill : 0xff1010, align : 'center'});
   app.stage.addChild(blockText);
 
   window.addEventListener('load', () => {
-
-    document.body.appendChild(app.view);
-
-
+	document.body.appendChild(app.view);
     refreshPosition()
     setInterval(refreshPosition, 15000);
-
-
-
 });
 
 
