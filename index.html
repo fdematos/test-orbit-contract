@@ -10,12 +10,6 @@
 <body>
   <script type="text/javascript">
 
-  function degrees_to_radians(degrees)
-  {
-    var pi = Math.PI;
-    return degrees * (pi/180);
-  }
-
   function displayPosition(id, x, y, color) {
 	   let text = new PIXI.Text(id ,{fontFamily : 'Arial', fontSize: 21, fill : color, align : 'center'});
        text.x = parseInt(x) + centerX
@@ -24,44 +18,37 @@
   }
 
   function refreshPosition() {
-    web3.eth.getBlockNumber().then(function(block){
-    blockText.text = "Block: "+block
+   web3.eth.getBlock("latest").then(function(block){
+    blockText.text = "Block: "+block.number+" - "+block.timestamp
+	var currentTime = block.timestamp
 
       comethGameContract.methods.shipsInGame().call().then(function(result){
           result.forEach(element => {
-           /* var blockDiff = block - element.orbit.lastUpdateBlock
-			console.log(element)
-            var currentAngleInDegree = (parseInt(element.orbit.last.angle, 10) + (blockDiff * 20)) % 360
-            var currentAngle = degrees_to_radians(currentAngleInDegree)
-            var x = element.orbit.last.distance * Math.cos(currentAngle) +centerX 
-			var y = element.orbit.last.distance * Math.sin(currentAngle) + centerY*/
-			
-            comethGameContract.methods.shipPosition(element.modelId).call().then(function(result){
+            comethGameContract.methods.shipPosition(element.modelId, currentTime).call().then(function(result){
 				displayPosition(element.modelId, result.x, result.y, 0xFF0000)
             });
 
           });
       });
 
-
       comethGameContract.methods.cometsInGame().call().then(function(result){
           result.forEach(element => {
 			displayPosition("X", element.orbit.center.x, element.orbit.center.y, 0x0000FF)
-            /*var blockDiff = block - element.orbit.lastUpdateBlock
-            var currentAngle = degrees_to_radians((element.orbit.last.angle+ (blockDiff * 20) ) % 360)
-
-            var x = element.orbit.last.distance * Math.cos(currentAngle) + parseInt(element.orbit.center.x)
-            var y=  element.orbit.last.distance * Math.sin(currentAngle) + parseInt(element.orbit.center.y)
-			console.log("COMETH : "+x+" "+y)*/
-			
-			comethGameContract.methods.cometPosition("0xf845b2501A69eF480aC577b99e96796c2B6AE88E").call().then(function(result){
-				//console.log("COMETH CONTRACT: "+result.x, result.y)
+			comethGameContract.methods.cometPosition(element.cometAddr, currentTime).call().then(function(result){
 				displayPosition("C", result.x, result.y, 0x0000FF)
             });
           })
       });
 
+	  comethGameContract.methods.canMine("Y", "0xf845b2501A69eF480aC577b99e96796c2B6AE88E", currentTime).call().then(function(result){
+		if (result == false) {
+			canMineText.text = "CANNOT MINE"
+			canMineText.fill = 0xFF0000
+		} else {
+			canMineText.text = "!!!!!!!!!! CAN MINE !!!!!!!!!!!!!!!!"
+		}
 
+	  });
 
     });
   }
@@ -142,9 +129,43 @@
 	{
 		"inputs": [
 			{
+				"internalType": "string",
+				"name": "modelId",
+				"type": "string"
+			},
+			{
 				"internalType": "address",
 				"name": "cometAddr",
 				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "time",
+				"type": "uint256"
+			}
+		],
+		"name": "canMine",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "result",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "cometAddr",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "time",
+				"type": "uint256"
 			}
 		],
 		"name": "cometPosition",
@@ -165,19 +186,6 @@
 				"internalType": "struct Cartesian",
 				"name": "position",
 				"type": "tuple"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "cometRotationSpeed",
-		"outputs": [
-			{
-				"internalType": "uint16",
-				"name": "",
-				"type": "uint16"
 			}
 		],
 		"stateMutability": "view",
@@ -232,7 +240,7 @@
 							},
 							{
 								"internalType": "uint256",
-								"name": "lastUpdateBlock",
+								"name": "lastUpdate",
 								"type": "uint256"
 							}
 						],
@@ -263,11 +271,29 @@
 		"type": "function"
 	},
 	{
+		"inputs": [],
+		"name": "shipMiningArea",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
 		"inputs": [
 			{
 				"internalType": "string",
 				"name": "modelId",
 				"type": "string"
+			},
+			{
+				"internalType": "uint256",
+				"name": "time",
+				"type": "uint256"
 			}
 		],
 		"name": "shipPosition",
@@ -342,7 +368,7 @@
 							},
 							{
 								"internalType": "uint256",
-								"name": "lastUpdateBlock",
+								"name": "lastUpdate",
 								"type": "uint256"
 							}
 						],
@@ -363,7 +389,7 @@
 
    var web3 = new Web3(new Web3.providers.HttpProvider('https://rinkeby.infura.io/v3/5a1d2983f4e54626b951daa708fdbf0c'));
 
-  var comethGameContract =  new web3.eth.Contract(comethGameAbi, "0x7Ff230D93605a31B7DCc8C6bf76124960B87eF98")
+  var comethGameContract =  new web3.eth.Contract(comethGameAbi, "0xdDE60791E054935C3B7D821E47CC58E11668EfD0")
 
   //Create a Pixi Application
   let app = new PIXI.Application({
@@ -382,8 +408,13 @@
   center.y = centerY;
   app.stage.addChild(center);
 
-  let blockText = new PIXI.Text("",{fontFamily : 'Arial', fontSize: 21, fill : 0xff1010, align : 'center'});
+  let blockText = new PIXI.Text("",{fontFamily : 'Arial', fontSize: 21, fill : 0x00FF00, align : 'center'});
   app.stage.addChild(blockText);
+
+
+  let canMineText = new PIXI.Text("",{fontFamily : 'Arial', fontSize: 21, fill : 0x00FF00, align : 'center'});
+  canMineText.x = 300
+  app.stage.addChild(canMineText);
 
   window.addEventListener('load', () => {
 	document.body.appendChild(app.view);
@@ -395,3 +426,23 @@
   </script>
 </body>
 </html>
+
+
+<!--
+
+function degrees_to_radians(degrees)
+  {
+    var pi = Math.PI;
+    return degrees * (pi/180);
+  }
+
+
+
+	Calculate cartesian on JS
+	 /*var blockDiff = block - element.orbit.lastUpdateBlock
+            var currentAngle = degrees_to_radians((element.orbit.last.angle+ (blockDiff * 20) ) % 360)
+
+            var x = element.orbit.last.distance * Math.cos(currentAngle) + parseInt(element.orbit.center.x)
+            var y=  element.orbit.last.distance * Math.sin(currentAngle) + parseInt(element.orbit.center.y)
+			console.log("COMETH : "+x+" "+y)*/
+-->

@@ -39,6 +39,7 @@ contract ComethGame {
     
     // Degree by second
     uint16 public rotationSpeed = 1;
+    uint8 public shipMiningArea = 10;
     
     mapping (string => Orbit) private shipOrbits;
     Ship[] private _ships;
@@ -47,16 +48,40 @@ contract ComethGame {
     Comet[] private _comets;
      
      
-     function shipPosition(string memory modelId) public view returns (Cartesian memory position){
-         return cartesianCoordinate(shipOrbits[modelId]);
+     function shipPosition(string memory modelId, uint time) public view returns (Cartesian memory position){
+         
+         if (time == 0) {
+            return cartesianCoordinate(shipOrbits[modelId], block.timestamp);
+         }
+         
+        return cartesianCoordinate(shipOrbits[modelId], time);
      }
      
-     function cometPosition(address cometAddr) public view returns (Cartesian memory position){
-         return cartesianCoordinate(comethOrbits[cometAddr]);
+     function cometPosition(address cometAddr, uint time) public view returns (Cartesian memory position){
+         if (time == 0) {
+            return cartesianCoordinate(comethOrbits[cometAddr], block.timestamp);
+         }
+         
+         return cartesianCoordinate(comethOrbits[cometAddr], time);
      }
      
-    function cartesianCoordinate(Orbit memory orbit) internal view returns (Cartesian memory position) {
-        uint timeDiff = block.timestamp - orbit.lastUpdate;
+     
+    function canMine(string memory modelId, address cometAddr, uint time) public view returns (bool result){
+        Cartesian memory ship = shipPosition(modelId, time);
+        Cartesian memory comet = cometPosition(cometAddr, time);
+     
+        int minX = ship.x - shipMiningArea;
+        int maxX = ship.x + shipMiningArea;
+        
+        int minY = ship.y - shipMiningArea;
+        int maxY = ship.y + shipMiningArea;
+        
+        return comet.x <= maxX && comet.x  >= minX && comet.y <= maxY && comet.y >= minY;
+    }
+     
+     
+    function cartesianCoordinate(Orbit memory orbit, uint time) internal view returns (Cartesian memory position) {
+        uint timeDiff = time - orbit.lastUpdate;
         int88 currentAngleDegree = int88((orbit.last.angle + timeDiff * rotationSpeed) % 360);
         int128 currentAngleReal = currentAngleDegree.toReal();
          
