@@ -17,10 +17,26 @@
        app.stage.addChild(text);
   }
 
+  function clear() {
+	for (var i = app.stage.children.length - 1; i >= 0; i--) {	app.stage.removeChild(app.stage.children[i]);};
+
+	app.stage.addChild(center);
+	app.stage.addChild(blockText);
+	app.stage.addChild(canMineText);
+  }
+
   function refreshPosition() {
-   web3.eth.getBlock("latest").then(function(block){
-    blockText.text = "Block: "+block.number+" - "+block.timestamp
-	var currentTime = block.timestamp
+	loop = loop+1
+	
+	clear()
+    web3.eth.getBlock("7661871").then(function(block){
+	var currentTime = block.timestamp + loop * 20;
+
+   //web3.eth.getBlock("latest").then(function(block){
+   //var currentTime = block.timestamp
+
+    blockText.text = "Block: "+block.number+" - "+currentTime
+	
 
       comethGameContract.methods.shipsInGame().call().then(function(result){
           result.forEach(element => {
@@ -54,6 +70,37 @@
   }
 
   var comethGameAbi = [
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "string",
+				"name": "_modelId",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "_block",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint32",
+				"name": "_distance",
+				"type": "uint32"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint16",
+				"name": "_angle",
+				"type": "uint16"
+			}
+		],
+		"name": "ShipMove",
+		"type": "event"
+	},
 	{
 		"inputs": [
 			{
@@ -94,37 +141,6 @@
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "string",
-				"name": "_modelId",
-				"type": "string"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "_block",
-				"type": "uint256"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint32",
-				"name": "_distance",
-				"type": "uint32"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint16",
-				"name": "_angle",
-				"type": "uint16"
-			}
-		],
-		"name": "ShipMove",
-		"type": "event"
 	},
 	{
 		"inputs": [
@@ -239,6 +255,11 @@
 								"type": "tuple"
 							},
 							{
+								"internalType": "uint16",
+								"name": "rotationSpeed",
+								"type": "uint16"
+							},
+							{
 								"internalType": "uint256",
 								"name": "lastUpdate",
 								"type": "uint256"
@@ -252,32 +273,6 @@
 				"internalType": "struct Comet[]",
 				"name": "comets",
 				"type": "tuple[]"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "rotationSpeed",
-		"outputs": [
-			{
-				"internalType": "uint16",
-				"name": "",
-				"type": "uint16"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "shipMiningArea",
-		"outputs": [
-			{
-				"internalType": "uint8",
-				"name": "",
-				"type": "uint8"
 			}
 		],
 		"stateMutability": "view",
@@ -331,6 +326,11 @@
 						"type": "string"
 					},
 					{
+						"internalType": "uint8",
+						"name": "miningArea",
+						"type": "uint8"
+					},
+					{
 						"components": [
 							{
 								"components": [
@@ -367,6 +367,11 @@
 								"type": "tuple"
 							},
 							{
+								"internalType": "uint16",
+								"name": "rotationSpeed",
+								"type": "uint16"
+							},
+							{
 								"internalType": "uint256",
 								"name": "lastUpdate",
 								"type": "uint256"
@@ -389,7 +394,7 @@
 
    var web3 = new Web3(new Web3.providers.HttpProvider('https://rinkeby.infura.io/v3/5a1d2983f4e54626b951daa708fdbf0c'));
 
-  var comethGameContract =  new web3.eth.Contract(comethGameAbi, "0xdDE60791E054935C3B7D821E47CC58E11668EfD0")
+  var comethGameContract =  new web3.eth.Contract(comethGameAbi, "0x6418BE0E1dAf4eF073ba1c32A9cd5e909E1D4e21")
 
   //Create a Pixi Application
   let app = new PIXI.Application({
@@ -416,10 +421,11 @@
   canMineText.x = 300
   app.stage.addChild(canMineText);
 
+  var loop = 0;
   window.addEventListener('load', () => {
 	document.body.appendChild(app.view);
     refreshPosition()
-    setInterval(refreshPosition, 15000);
+    setInterval(refreshPosition, 1000);
 });
 
 

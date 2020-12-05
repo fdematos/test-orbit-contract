@@ -6,6 +6,7 @@ import "./realmath.sol";
 struct Orbit  { 
       Cartesian center;
       Polar last;
+      uint16 rotationSpeed;
       uint lastUpdate;
 }
 
@@ -14,22 +15,23 @@ struct Polar {
         uint16 angle;
     }
     
-    struct Cartesian { 
-        int x;
-        int y;
-    }
+struct Cartesian { 
+    int x;
+    int y;
+}
     
     
 struct Ship { 
     string modelId;
+    uint8 miningArea;
     Orbit orbit;
-       
 }
     
 struct Comet { 
     address cometAddr;
     Orbit orbit;
 }
+
     
 contract ComethGame {
     
@@ -37,52 +39,47 @@ contract ComethGame {
         
     event ShipMove(string indexed _modelId,  uint _block, uint32  _distance, uint16 _angle);
     
-    // Degree by second
-    uint16 public rotationSpeed = 1;
-    uint8 public shipMiningArea = 10;
-    
-    mapping (string => Orbit) private shipOrbits;
+    mapping (string => Ship) private shipsMapping;
     Ship[] private _ships;
     
-    mapping (address => Orbit) private comethOrbits;
+    mapping (address => Comet) private cometsMapping;
     Comet[] private _comets;
      
+    function shipsInGame() public view returns (Ship[] memory ships)  {
+        return  _ships;
+    }
+    
+    function cometsInGame() public view returns (Comet[] memory comets)  {
+        return  _comets;
+    }
      
      function shipPosition(string memory modelId, uint time) public view returns (Cartesian memory position){
-         
-         if (time == 0) {
-            return cartesianCoordinate(shipOrbits[modelId], block.timestamp);
-         }
-         
-        return cartesianCoordinate(shipOrbits[modelId], time);
+        return cartesianCoordinate(shipsMapping[modelId].orbit, time);
      }
      
      function cometPosition(address cometAddr, uint time) public view returns (Cartesian memory position){
-         if (time == 0) {
-            return cartesianCoordinate(comethOrbits[cometAddr], block.timestamp);
-         }
-         
-         return cartesianCoordinate(comethOrbits[cometAddr], time);
+         return cartesianCoordinate(cometsMapping[cometAddr].orbit, time);
      }
      
      
     function canMine(string memory modelId, address cometAddr, uint time) public view returns (bool result){
-        Cartesian memory ship = shipPosition(modelId, time);
-        Cartesian memory comet = cometPosition(cometAddr, time);
+        Ship memory ship = shipsMapping[modelId];
+        Cartesian memory shipCartesian = shipPosition(modelId, time);
+        Cartesian memory cometCartesian = cometPosition(cometAddr, time);
      
-        int minX = ship.x - shipMiningArea;
-        int maxX = ship.x + shipMiningArea;
+        int minX = shipCartesian.x - ship.miningArea;
+        int maxX = shipCartesian.x + ship.miningArea;
         
-        int minY = ship.y - shipMiningArea;
-        int maxY = ship.y + shipMiningArea;
+        int minY = shipCartesian.y - ship.miningArea;
+        int maxY = shipCartesian.y + ship.miningArea;
         
-        return comet.x <= maxX && comet.x  >= minX && comet.y <= maxY && comet.y >= minY;
+        return cometCartesian.x <= maxX && cometCartesian.x  >= minX && cometCartesian.y <= maxY && cometCartesian.y >= minY;
     }
      
      
-    function cartesianCoordinate(Orbit memory orbit, uint time) internal view returns (Cartesian memory position) {
+    function cartesianCoordinate(Orbit memory orbit, uint time) internal pure returns (Cartesian memory position) {
         uint timeDiff = time - orbit.lastUpdate;
-        int88 currentAngleDegree = int88((orbit.last.angle + timeDiff * rotationSpeed) % 360);
+        int88 currentAngleDegree = int88((orbit.last.angle + timeDiff * orbit.rotationSpeed) % 360);
         int128 currentAngleReal = currentAngleDegree.toReal();
          
         int128 halfCirleReal = int88(180).toReal();
@@ -108,10 +105,11 @@ contract ComethGame {
          
          Orbit memory orbit = Orbit({center: Cartesian({x:0, y:0}), 
                                      last: Polar({angle:angle, distance:distance}), 
-                                     lastUpdate: block.timestamp});
+                                     lastUpdate: block.timestamp, rotationSpeed:1});
          
-         shipOrbits[modelId] = orbit;
-         _ships.push(Ship({modelId: modelId, orbit: orbit}));
+         Ship memory ship = Ship({modelId: modelId, orbit: orbit, miningArea: 15});
+         shipsMapping[modelId] = ship;
+         _ships.push(ship);
          
          emit ShipMove(modelId, block.number, distance, angle);
     }
@@ -120,18 +118,11 @@ contract ComethGame {
       function addComet (address cometAddr, int x, int y, uint32 distance) public {
          Orbit memory orbit = Orbit({center:  Cartesian({x:x, y:y}), 
                                      last: Polar({angle:0, distance:distance}), 
-                                     lastUpdate: block.timestamp});
+                                     lastUpdate: block.timestamp, rotationSpeed:2});
          
-         comethOrbits[cometAddr] = orbit;
-         _comets.push(Comet({cometAddr: cometAddr, orbit: orbit}));
-    }
-    
-    function shipsInGame() public view returns (Ship[] memory ships)  {
-        return  _ships;
-    }
-    
-    function cometsInGame() public view returns (Comet[] memory comets)  {
-        return  _comets;
+         Comet memory comet = Comet({cometAddr: cometAddr, orbit: orbit});
+         cometsMapping[cometAddr] = comet;
+         _comets.push(comet);
     }
     
 }
