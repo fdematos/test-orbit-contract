@@ -77,7 +77,7 @@ contract ComethGame {
     }
      
      
-    function cartesianCoordinate(Orbit memory orbit, uint time) internal pure returns (Cartesian memory position) {
+    function cartesianCoordinate(Orbit memory orbit, uint time) public pure returns (Cartesian memory position) {
         uint timeDiff = time - orbit.lastUpdate;
         int88 currentAngleDegree = int88((orbit.last.angle + timeDiff * orbit.rotationSpeed) % 360);
         int128 currentAngleReal = currentAngleDegree.toReal();

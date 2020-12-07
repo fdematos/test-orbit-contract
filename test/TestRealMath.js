@@ -1,7 +1,7 @@
 var RealMath = artifacts.require("RealMath")
 
 // Load the Macroverse module JavaScript
-let mv = require('../src')
+let mv = require('./RealMathUtils')
 
 contract('RealMath', function(accounts) {
   it("should come with working accessory functions", async function() {
