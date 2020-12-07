@@ -13,11 +13,16 @@
   var comethGameAddress = "0x3125F520a58bFec755FE61fd212891E2c9fC0a82";
   var refreshRate = 2000;
 
-  function displayPosition(id, x, y, color) {
+  var toClear= [];
+
+  function displayPosition(id, x, y, color, clear) {
 	   let text = new PIXI.Text(id ,{fontFamily : 'Arial', fontSize: 21, fill : color, align : 'center'});
        text.x = parseInt(x) + centerX
 	   text.y = parseInt(y) + centerY
        app.stage.addChild(text);
+	   if (clear == true) {
+	   	toClear.push(text);
+	   }
   }
 
   function displayMiningArea(ship, x, y) {
@@ -33,14 +38,45 @@
 	console.log(rectStartX, rectStartY, width, heigth)
 	graphics.drawRect(rectStartX, rectStartY, width, heigth);
 	app.stage.addChild(graphics);
+	toClear.push(graphics);
   }
  
   function clear() {
-	for (var i = app.stage.children.length - 1; i >= 0; i--) {	app.stage.removeChild(app.stage.children[i]);};
+	for (var i = toClear.length - 1; i >= 0; i--) {	app.stage.removeChild(toClear[i])};
+  }
 
-	app.stage.addChild(center);
-	app.stage.addChild(blockText);
-	app.stage.addChild(canMineText);
+  function getAllShip(time) {
+	comethGameContract.methods.shipsInGame().call().then(function(result){
+          result.forEach(element => {
+            comethGameContract.methods.shipPosition(element.modelId, time).call().then(function(result){
+				displayMiningArea(element, result.x, result.y)
+				displayPosition(element.modelId, result.x, result.y, 0xFF0000, true)
+            });
+
+          });
+      });
+  }
+
+  function getAllCometh(time) {
+	comethGameContract.methods.cometsInGame().call().then(function(result){
+          result.forEach(element => {
+			displayPosition("X", element.orbit.center.x, element.orbit.center.y, 0x0000FF, false)
+			comethGameContract.methods.cometPosition(element.cometAddr, time).call().then(function(result){
+				displayPosition("C", result.x, result.y, 0x0000FF, true)
+            });
+          })
+      });
+  }
+
+  function checkCanMine(minerID, comethAddr, time){
+	comethGameContract.methods.canMine(minerID, comethAddr, time).call().then(function(result){
+		if (result == false) {
+			canMineText.text = "CANNOT MINE"
+		} else {
+			canMineText.text = "!!!!!!!!!! CAN MINE !!!!!!!!!!!!!!!!"
+		}
+
+	  });
   }
 
   function refreshPosition() {
@@ -51,39 +87,12 @@
 	var currentTime = block.timestamp + loop * 25;
 
    //web3.eth.getBlock("latest").then(function(block){
-  // var currentTime = block.timestamp
-
+   //var currentTime = block.timestamp
     blockText.text = "Block: "+block.number+" - "+currentTime
 	
-
-      comethGameContract.methods.shipsInGame().call().then(function(result){
-          result.forEach(element => {
-            comethGameContract.methods.shipPosition(element.modelId, currentTime).call().then(function(result){
-				displayMiningArea(element, result.x, result.y)
-				displayPosition(element.modelId, result.x, result.y, 0xFF0000)
-            });
-
-          });
-      });
-
-      comethGameContract.methods.cometsInGame().call().then(function(result){
-          result.forEach(element => {
-			displayPosition("X", element.orbit.center.x, element.orbit.center.y, 0x0000FF)
-			comethGameContract.methods.cometPosition(element.cometAddr, currentTime).call().then(function(result){
-				displayPosition("C", result.x, result.y, 0x0000FF)
-            });
-          })
-      });
-
-	  comethGameContract.methods.canMine("Y", "0xf845b2501A69eF480aC577b99e96796c2B6AE88E", currentTime).call().then(function(result){
-		if (result == false) {
-			canMineText.text = "CANNOT MINE"
-		} else {
-			canMineText.text = "!!!!!!!!!! CAN MINE !!!!!!!!!!!!!!!!"
-		}
-
-	  });
-
+	getAllShip(currentTime);
+	getAllCometh(currentTime);
+	checkCanMine("Y", "0xf845b2501A69eF480aC577b99e96796c2B6AE88E", currentTime);
     });
   }
 
