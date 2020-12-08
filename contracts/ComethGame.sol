@@ -22,13 +22,14 @@ struct Cartesian {
     
     
 struct Ship { 
-    string modelId;
+    uint256 tokenId;
+    address owner;
     uint8 miningArea;
     Orbit orbit;
 }
     
 struct Comet { 
-    address cometAddr;
+    string name;
     Orbit orbit;
 }
 
@@ -37,12 +38,12 @@ contract ComethGame {
     
     using RealMath for *;
         
-    event ShipMove(string indexed _modelId,  uint _block, uint32  _distance, uint16 _angle);
+    event ShipMove(uint256 indexed _tokenId,  uint _block, uint32  _distance, uint16 _angle);
     
-    mapping (string => Ship) private shipsMapping;
+    mapping (uint256 => Ship) private shipsMapping;
     Ship[] private _ships;
     
-    mapping (address => Comet) private cometsMapping;
+    mapping (string => Comet) private cometsMapping;
     Comet[] private _comets;
      
     function shipsInGame() public view returns (Ship[] memory ships)  {
@@ -52,20 +53,20 @@ contract ComethGame {
     function cometsInGame() public view returns (Comet[] memory comets)  {
         return  _comets;
     }
-     
-     function shipPosition(string memory modelId, uint time) public view returns (Cartesian memory position){
-        return cartesianCoordinate(shipsMapping[modelId].orbit, time);
+
+     function shipPosition(uint256 tokenId, uint time) public view returns (Cartesian memory position){
+        return cartesianCoordinate(shipsMapping[tokenId].orbit, time);
+     }
+
+     function cometPosition(string memory name, uint time) public view returns (Cartesian memory position){
+         return cartesianCoordinate(cometsMapping[name].orbit, time);
      }
      
-     function cometPosition(address cometAddr, uint time) public view returns (Cartesian memory position){
-         return cartesianCoordinate(cometsMapping[cometAddr].orbit, time);
-     }
      
-     
-    function canMine(string memory modelId, address cometAddr, uint time) public view returns (bool result){
-        Ship memory ship = shipsMapping[modelId];
-        Cartesian memory shipCartesian = shipPosition(modelId, time);
-        Cartesian memory cometCartesian = cometPosition(cometAddr, time);
+    function canMine(uint256 tokenId, string memory cometName, uint time) public view returns (bool result){
+        Ship memory ship = shipsMapping[tokenId];
+        Cartesian memory shipCartesian = shipPosition(tokenId, time);
+        Cartesian memory cometCartesian = cometPosition(cometName, time);
      
         int minX = shipCartesian.x - ship.miningArea;
         int maxX = shipCartesian.x + ship.miningArea;
@@ -97,31 +98,32 @@ contract ComethGame {
          return Cartesian({x: x, y: y});
     }
     
-    function addShip (string memory modelId) public {
+    function addShip (uint256 tokenId) public {
          uint256 addressToUint = uint256(msg.sender);
          
-         uint32 distance = uint32(addressToUint % 500);
-         uint16 angle = uint16(addressToUint % 360);
+         uint16 angle = uint16((addressToUint + tokenId) % 360);
+         uint32 distance = uint32((addressToUint + tokenId) % 500);
+        
          
          Orbit memory orbit = Orbit({center: Cartesian({x:0, y:0}), 
                                      last: Polar({angle:angle, distance:distance}), 
                                      lastUpdate: block.timestamp, rotationSpeed:1});
          
-         Ship memory ship = Ship({modelId: modelId, orbit: orbit, miningArea: 15});
-         shipsMapping[modelId] = ship;
+         Ship memory ship = Ship({tokenId: tokenId, orbit: orbit, miningArea: 15, owner: msg.sender});
+         shipsMapping[tokenId] = ship;
          _ships.push(ship);
          
-         emit ShipMove(modelId, block.number, distance, angle);
+         emit ShipMove(tokenId, block.number, distance, angle);
     }
     
     
-      function addComet (address cometAddr, int x, int y, uint32 distance) public {
+      function addComet (string memory cometName, int x, int y, uint32 distance) public {
          Orbit memory orbit = Orbit({center:  Cartesian({x:x, y:y}), 
                                      last: Polar({angle:0, distance:distance}), 
                                      lastUpdate: block.timestamp, rotationSpeed:2});
          
-         Comet memory comet = Comet({cometAddr: cometAddr, orbit: orbit});
-         cometsMapping[cometAddr] = comet;
+         Comet memory comet = Comet({name: cometName, orbit: orbit});
+         cometsMapping[cometName] = comet;
          _comets.push(comet);
     }
     

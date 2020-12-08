@@ -22,4 +22,21 @@ contract('ComethGame', function(accounts) {
         assert.equal(coordinate[1], expectedCoordinate[1]);
     })
 
+    it("should add ship", async function() {  
+        let instance = await ComethGame.deployed()
+
+        let tokenId = 6000099
+        let accountNumber = BigInt(accounts[0]);
+       
+        let sourceNumber = accountNumber + BigInt(tokenId)
+        let expectedDistance = sourceNumber % BigInt(500)
+        let expectedAngle = sourceNumber % BigInt(360)
+
+        await instance.addShip(tokenId)
+
+        let ships = await instance.shipsInGame()
+        assert.equal(ships[0].orbit.last.angle, expectedAngle);
+        assert.equal(ships[0].orbit.last.distance, expectedDistance);
+    })
+
 })
